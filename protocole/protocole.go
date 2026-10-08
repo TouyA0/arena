@@ -1,7 +1,9 @@
 package protocole
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 )
@@ -88,4 +90,16 @@ func LireRobot(champs []string) (Robot, error) {
 		return Robot{}, fmt.Errorf("%s: pas un nombre", nom)
 	}
 	return Robot{NOM: nom, X: x_pos, Y: y_pos, VIE: vie}, nil
+}
+
+func LireBloc(s *bufio.Scanner) (Etat, error) {
+	var bloc []string
+	for s.Scan() { // lit la ligne suivante
+		champs := strings.Fields(s.Text()) // recup texte de la ligne
+		if len(champs) > 0 && champs[0] == "FIN" {
+			return Lire(bloc)
+		}
+		bloc = append(bloc, s.Text())
+	}
+	return Etat{}, io.EOF
 }
