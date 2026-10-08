@@ -8,12 +8,6 @@ import (
 	"robot/carte"
 )
 
-type Robot struct {
-	NOM string
-	X, Y int
-	VIE int
-}
-
 func main() {
 	chemin := flag.String("carte", "", "fichier .map")
 	joueur := flag.Int("joueur", 0, "1 ou 2")

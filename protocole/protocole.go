@@ -6,6 +6,12 @@ import (
 	"strings"
 )
 
+type Robot struct {
+	NOM string
+	X, Y int
+	VIE int
+}
+
 type Etat struct {
 	Tour int;
 	Moi, Ennemi Robot
