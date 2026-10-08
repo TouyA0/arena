@@ -1,14 +1,18 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"os"
-	
+
 	"robot/carte"
-	"robot/ia"
 )
+
+type Robot struct {
+	NOM string
+	X, Y int
+	VIE int
+}
 
 func main() {
 	chemin := flag.String("carte", "", "fichier .map")
@@ -21,11 +25,4 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Fprintf(os.Stderr, "joueur %d, carte %q chargée\n", *joueur, c.Nom)
-	
-	entree := bufio.NewScanner(os.Stdin)
-	for entree.Scan() {
-		if entree.Text() == "FIN" {
-			fmt.Println(ia.Decider())
-		}
-	}
 }
