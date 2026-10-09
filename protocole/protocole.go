@@ -8,15 +8,25 @@ import (
 	"strings"
 )
 
+const MunIllimitees = -1
+
 type Robot struct {
-	NOM string
+	NOM 		string
+	X, Y 		int
+	VIE 		int
+	MUN 		int
+	BOUCLIER 	int
+}
+
+type Objet struct {
 	X, Y int
-	VIE int
+	Type string
 }
 
 type Etat struct {
-	Tour int;
+	Tour 		int;
 	Moi, Ennemi Robot
+	Objets      []Objet
 }
 
 func Lire(lignes []string) (Etat, error) {
@@ -50,7 +60,7 @@ func Lire(lignes []string) (Etat, error) {
 			}
 			robot, err := LireRobot(champs)
 			if err != nil {
-				return Etat{}, fmt.Errorf("MOI: erreur de lecture %v", err)
+				return Etat{}, err
 			}
 			e.Moi = robot
 			okMoi = true
@@ -65,6 +75,13 @@ func Lire(lignes []string) (Etat, error) {
 			}
 			e.Ennemi = robot
 			okEnnemi = true
+
+		case "OBJET":
+			objet, err := LireObjet(champs)
+			if err != nil {
+				return Etat{}, err
+			}
+			e.Objets = append(e.Objets, objet)
 
 		default:
 		}
@@ -89,7 +106,40 @@ func LireRobot(champs []string) (Robot, error) {
 	if err_x != nil || err_y != nil || err_vie != nil {
 		return Robot{}, fmt.Errorf("%s: pas un nombre", nom)
 	}
-	return Robot{NOM: nom, X: x_pos, Y: y_pos, VIE: vie}, nil
+	robot := Robot{NOM: nom, X: x_pos, Y: y_pos, VIE: vie, MUN: MunIllimitees, BOUCLIER: 0}
+
+	for i := 5; i < len(champs); i++ {
+		cle := champs[i]
+		if cle != "MUN" && cle != "BOUCLIER" {
+			continue
+		}
+		if i+1 >= len(champs) {
+			return Robot{}, fmt.Errorf("%s: %s sans valeur", nom, cle)
+		}
+		valeur, err := strconv.Atoi(champs[i+1])
+		if err != nil {
+			return Robot{}, fmt.Errorf("%s: %s pas un nombre %q", nom, cle, champs[i+1])
+		}
+		if cle == "MUN" {
+			robot.MUN = valeur
+		} else {
+			robot.BOUCLIER = valeur
+		}
+		i++
+	}
+	return robot, nil
+}
+
+func LireObjet(champs []string) (Objet, error) {
+	if len(champs) < 4 {
+		return Objet{}, fmt.Errorf("OBJET: champ manquant")
+	}
+	x_pos, err_x := strconv.Atoi(champs[1])
+	y_pos, err_y := strconv.Atoi(champs[2])
+	if err_x != nil || err_y != nil {
+		return Objet{}, fmt.Errorf("OBJET: pas un nombre")
+	}
+	return Objet{X: x_pos, Y: y_pos, Type: champs[3]}, nil
 }
 
 func LireBloc(s *bufio.Scanner) (Etat, error) {
