@@ -19,7 +19,7 @@ const (
 type Cerveau struct {
 	carte        carte.Carte
 	ennemiAvant  Pos
-	dejaJoue 	 bool
+	dejaJoue     bool
 	toursAttente int
 }
 
@@ -76,18 +76,18 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 	direction = versCaseDeTir(c, moi, ennemi, coutTotal, premierPas)
 	if direction != "" {
 		prochaineCase := voisin(moi, direction)
-		_, exposee := directionDeTir(c, ennemi, prochaineCase)
-		if exposee && ennemiABouge && dejaAttendu < PatienceMax {
+		dangereuse := exposee(c, prochaineCase, ennemi, coutTotal)
+		if dangereuse && ennemiABouge && dejaAttendu < PatienceMax {
 			cerveau.toursAttente = dejaAttendu + 1
 			return "ATTENDS", "attend qu'il entre dans ma ligne de tir"
 		}
 		return "AVANCE " + direction, "approche d'une case de tir"
 	}
- 
+
 	return "ATTENDS", "rien d'utile à faire"
 }
 
-func tirAnticipe(c carte.Carte, moi, ennemi Pos, coutTotal map[Pos]int) (string, bool) {
+func casesProbablesEnnemi(ennemi Pos, coutTotal map[Pos]int) []Pos {
 	coutMin := -1
 	for _, direction := range directions {
 		coutCase, atteignable := coutTotal[voisin(ennemi, direction)]
@@ -96,15 +96,22 @@ func tirAnticipe(c carte.Carte, moi, ennemi Pos, coutTotal map[Pos]int) (string,
 		}
 	}
 	if coutMin <= 0 {
-		return "", false
+		return nil
 	}
 
+	var cases []Pos
 	for _, direction := range directions {
-		caseFuture := voisin(ennemi, direction)
-		coutCase, atteignable := coutTotal[caseFuture]
-		if !atteignable || coutCase != coutMin {
-			continue
+		caseVoisine := voisin(ennemi, direction)
+		coutCase, atteignable := coutTotal[caseVoisine]
+		if atteignable && coutCase == coutMin {
+			cases = append(cases, caseVoisine)
 		}
+	}
+	return cases
+}
+
+func tirAnticipe(c carte.Carte, moi, ennemi Pos, coutTotal map[Pos]int) (string, bool) {
+	for _, caseFuture := range casesProbablesEnnemi(ennemi, coutTotal) {
 		directionTir, touche := directionDeTir(c, moi, caseFuture)
 		if touche {
 			return directionTir, true
@@ -113,9 +120,20 @@ func tirAnticipe(c carte.Carte, moi, ennemi Pos, coutTotal map[Pos]int) (string,
 	return "", false
 }
 
+func exposee(c carte.Carte, caseTestee, ennemi Pos, coutTotal map[Pos]int) bool {
+	positionsEnnemi := append([]Pos{ennemi}, casesProbablesEnnemi(ennemi, coutTotal)...)
+	for _, positionEnnemi := range positionsEnnemi {
+		_, touche := directionDeTir(c, positionEnnemi, caseTestee)
+		if touche {
+			return true
+		}
+	}
+	return false
+}
+
 func objetsUtiles(etat protocole.Etat) []protocole.Objet {
 	var utiles []protocole.Objet
- 
+
 	for _, objet := range etat.Objets {
 		switch objet.Type {
 		case "SOIN":
@@ -134,10 +152,10 @@ func objetsUtiles(etat protocole.Etat) []protocole.Objet {
 
 func versObjet(objets []protocole.Objet, typeVoulu string, moi Pos,
 	coutTotal map[Pos]int, premierPas map[Pos]string, coutMax int) string {
- 
+
 	meilleurCout := -1
 	meilleureDirection := ""
- 
+
 	for _, objet := range objets {
 		if typeVoulu != "" && objet.Type != typeVoulu {
 			continue
@@ -160,10 +178,10 @@ func versObjet(objets []protocole.Objet, typeVoulu string, moi Pos,
 
 func versCaseDeTir(c carte.Carte, moi, ennemi Pos,
 	coutTotal map[Pos]int, premierPas map[Pos]string) string {
- 
+
 	meilleurCout := -1
 	meilleureDirection := ""
- 
+
 	for caseTestee, coutCase := range coutTotal {
 		if caseTestee == moi {
 			continue
