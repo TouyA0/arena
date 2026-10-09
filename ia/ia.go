@@ -9,12 +9,14 @@ const (
 	Portee = 5 // dist max d'un tir
 	ObjetProche = 3 // dist max pour considérer un objet comme proche
 	SansLimite  = -1 // pas de cout max pour aller chercher un objet
+	PatienceMax = 3  // nombre de tours max a attendre l'ennemi
 )
 
 type Cerveau struct {
-	carte       carte.Carte
-	ennemiAvant Pos
-	dejaJoue    bool
+	carte        carte.Carte
+	ennemiAvant  Pos
+	dejaJoue 	 bool
+	toursAttente int
 }
 
 func NouveauCerveau(c carte.Carte) *Cerveau {
@@ -29,6 +31,9 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 	ennemiABouge := cerveau.dejaJoue && ennemi != cerveau.ennemiAvant
 	cerveau.ennemiAvant = ennemi
 	cerveau.dejaJoue = true
+
+	dejaAttendu := cerveau.toursAttente
+	cerveau.toursAttente = 0
 
 	directionTir, peutTirer := directionDeTir(c, moi, ennemi)
 	aDesMunitions := etat.Moi.MUN != 0
@@ -66,6 +71,12 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 
 	direction = versCaseDeTir(c, moi, ennemi, coutTotal, premierPas)
 	if direction != "" {
+		prochaineCase := voisin(moi, direction)
+		_, exposee := directionDeTir(c, ennemi, prochaineCase)
+		if exposee && ennemiABouge && dejaAttendu < PatienceMax {
+			cerveau.toursAttente = dejaAttendu + 1
+			return "ATTENDS", "attend qu'il entre dans ma ligne de tir"
+		}
 		return "AVANCE " + direction, "approche d'une case de tir"
 	}
  
