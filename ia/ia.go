@@ -10,6 +10,10 @@ const (
 	ObjetProche = 3 // dist max pour considérer un objet comme proche
 	SansLimite  = -1 // pas de cout max pour aller chercher un objet
 	PatienceMax = 3  // nombre de tours max a attendre l'ennemi
+
+	PVMax = 100
+	GainSoin = 30
+	MunSuffisantes = 10
 )
 
 type Cerveau struct {
@@ -64,7 +68,7 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 		}
 	}
 
-	direction := versObjet(etat.Objets, "", moi, coutTotal, premierPas, ObjetProche)
+	direction := versObjet(objetsUtiles(etat), "", moi, coutTotal, premierPas, ObjetProche)
 	if direction != "" {
 		return "AVANCE " + direction, "ramasse un objet proche"
 	}
@@ -107,6 +111,25 @@ func tirAnticipe(c carte.Carte, moi, ennemi Pos, coutTotal map[Pos]int) (string,
 		}
 	}
 	return "", false
+}
+
+func objetsUtiles(etat protocole.Etat) []protocole.Objet {
+	var utiles []protocole.Objet
+ 
+	for _, objet := range etat.Objets {
+		switch objet.Type {
+		case "SOIN":
+			if etat.Moi.VIE > PVMax-GainSoin {
+				continue
+			}
+		case "MUNITION":
+			if etat.Moi.MUN == protocole.MunIllimitees || etat.Moi.MUN >= MunSuffisantes {
+				continue
+			}
+		}
+		utiles = append(utiles, objet)
+	}
+	return utiles
 }
 
 func versObjet(objets []protocole.Objet, typeVoulu string, moi Pos,
