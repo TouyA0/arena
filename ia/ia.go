@@ -5,42 +5,97 @@ import (
 	"robot/protocole"
 )
 
-const Portee = 5
+const (
+	Portee = 5 // dist max d'un tir
+	ObjetProche = 3 // dist max pour considérer un objet comme proche
+	SansLimite  = -1 // pas de cout max pour aller chercher un objet
+)
 
 func Decider(etat protocole.Etat, c carte.Carte) (string, string) {
 	moi := Pos{etat.Moi.X, etat.Moi.Y}
 	ennemi := Pos{etat.Ennemi.X, etat.Ennemi.Y}
 
 	directionTir, peutTirer := directionDeTir(c, moi, ennemi)
-	if peutTirer {
+	aDesMunitions := etat.Moi.MUN != 0
+	if peutTirer && aDesMunitions {
 		return "TIRE " + directionTir, "ennemi aligné"
 	}
 
 	coutTotal, premierPas := Distances(c, moi, ennemi, etat.Moi.VIE)
 
+	if etat.Moi.VIE <= SeuilPVBas {
+		direction := versObjet(etat.Objets, "SOIN", moi, coutTotal, premierPas, SansLimite)
+		if direction != "" {
+			return "AVANCE " + direction, "PV bas, va au soin"
+		}
+	}
+
+	if !aDesMunitions {
+		direction := versObjet(etat.Objets, "MUNITION", moi, coutTotal, premierPas, SansLimite)
+		if direction != "" {
+			return "AVANCE " + direction, "plus de munitions, va recharger"
+		}
+	}
+
+	direction := versObjet(etat.Objets, "", moi, coutTotal, premierPas, ObjetProche)
+	if direction != "" {
+		return "AVANCE " + direction, "ramasse un objet proche"
+	}
+
+	direction = versCaseDeTir(c, moi, ennemi, coutTotal, premierPas)
+	if direction != "" {
+		return "AVANCE " + direction, "approche d'une case de tir"
+	}
+ 
+	return "ATTENDS", "rien d'utile à faire"
+}
+
+func versObjet(objets []protocole.Objet, typeVoulu string, moi Pos,
+	coutTotal map[Pos]int, premierPas map[Pos]string, coutMax int) string {
+ 
 	meilleurCout := -1
 	meilleureDirection := ""
+ 
+	for _, objet := range objets {
+		if typeVoulu != "" && objet.Type != typeVoulu {
+			continue
+		}
+		caseObjet := Pos{objet.X, objet.Y}
+		coutObjet, atteignable := coutTotal[caseObjet]
+		if !atteignable || caseObjet == moi {
+			continue
+		}
+		if coutMax != SansLimite && coutObjet > coutMax {
+			continue // trop loin
+		}
+		if meilleurCout == -1 || coutObjet < meilleurCout {
+			meilleurCout = coutObjet
+			meilleureDirection = premierPas[caseObjet]
+		}
+	}
+	return meilleureDirection
+}
 
+func versCaseDeTir(c carte.Carte, moi, ennemi Pos,
+	coutTotal map[Pos]int, premierPas map[Pos]string) string {
+ 
+	meilleurCout := -1
+	meilleureDirection := ""
+ 
 	for caseTestee, coutCase := range coutTotal {
 		if caseTestee == moi {
 			continue
 		}
-
 		_, caseDeTir := directionDeTir(c, caseTestee, ennemi)
 		if !caseDeTir {
 			continue
 		}
-
 		if meilleurCout == -1 || coutCase < meilleurCout {
 			meilleurCout = coutCase
 			meilleureDirection = premierPas[caseTestee]
 		}
 	}
-
-	if meilleureDirection == "" {
-		return "ATTENDS", "aucune case de tir atteignable"
-	}
-	return "AVANCE " + meilleureDirection, "approche d'une case de tir"
+	return meilleureDirection
 }
 
 func directionDeTir(c carte.Carte, caseDepart, cible Pos) (string, bool) {
