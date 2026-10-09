@@ -28,6 +28,7 @@ func main() {
 	}
 	fmt.Fprintf(os.Stderr, "joueur %d, carte %q chargée\n", joueur, c.Nom)
 
+	cerveau := ia.NouveauCerveau(c)
 	lecteur := protocole.NouveauLecteur(os.Stdin)
 	for {
 		etat, err := protocole.LireBloc(lecteur)
@@ -39,7 +40,7 @@ func main() {
 			protocole.Repondre("ATTENDS")
 			continue
 		}
-		action, raison := ia.Decider(etat, c)
+		action, raison := ia.Decider(cerveau, etat)
 		fmt.Fprintf(os.Stderr, "T%d | %s | %s\n", etat.Tour, action, raison)
 		protocole.Repondre(action)
 	}
