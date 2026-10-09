@@ -6,13 +6,13 @@ import (
 )
 
 const (
-	Portee = 5 // dist max d'un tir
-	ObjetProche = 3 // dist max pour considérer un objet comme proche
+	Portee      = 5  // dist max d'un tir
+	ObjetProche = 3  // dist max pour considérer un objet comme proche
 	SansLimite  = -1 // pas de cout max pour aller chercher un objet
 	PatienceMax = 3  // nombre de tours max a attendre l'ennemi
 
-	PVMax = 100
-	GainSoin = 30
+	PVMax          = 100
+	GainSoin       = 30
 	MunSuffisantes = 10
 )
 
@@ -21,10 +21,11 @@ type Cerveau struct {
 	ennemiAvant  Pos
 	dejaJoue     bool
 	toursAttente int
+	plusProche   int
 }
 
 func NouveauCerveau(c carte.Carte) *Cerveau {
-	return &Cerveau{carte: c}
+	return &Cerveau{carte: c, plusProche: -1}
 }
 
 func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
@@ -38,6 +39,8 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 
 	dejaAttendu := cerveau.toursAttente
 	cerveau.toursAttente = 0
+	plusProcheAvant := cerveau.plusProche
+	cerveau.plusProche = -1
 
 	directionTir, peutTirer := directionDeTir(c, moi, ennemi)
 	aDesMunitions := etat.Moi.MUN != 0
@@ -46,6 +49,9 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 	}
 
 	coutTotal, premierPas := Distances(c, moi, ennemi, etat.Moi.VIE)
+
+	distance := distanceEnnemi(ennemi, coutTotal)
+	seRapproche := distance != -1 && (plusProcheAvant == -1 || distance < plusProcheAvant)
 
 	if ennemiABouge && aDesMunitions {
 		directionAnticipee, touche := tirAnticipe(c, moi, ennemi, coutTotal)
@@ -77,8 +83,14 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 	if direction != "" {
 		prochaineCase := voisin(moi, direction)
 		dangereuse := exposee(c, prochaineCase, ennemi, coutTotal)
-		if dangereuse && ennemiABouge && dejaAttendu < PatienceMax {
-			cerveau.toursAttente = dejaAttendu + 1
+		if dangereuse && ennemiABouge && (seRapproche || dejaAttendu < PatienceMax) {
+			cerveau.toursAttente = dejaAttendu
+			cerveau.plusProche = plusProcheAvant
+			if seRapproche {
+				cerveau.plusProche = distance
+			} else {
+				cerveau.toursAttente = dejaAttendu + 1
+			}
 			return "ATTENDS", "attend qu'il entre dans ma ligne de tir"
 		}
 		return "AVANCE " + direction, "approche d'une case de tir"
@@ -87,7 +99,7 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 	return "ATTENDS", "rien d'utile à faire"
 }
 
-func casesProbablesEnnemi(ennemi Pos, coutTotal map[Pos]int) []Pos {
+func distanceEnnemi(ennemi Pos, coutTotal map[Pos]int) int {
 	coutMin := -1
 	for _, direction := range directions {
 		coutCase, atteignable := coutTotal[voisin(ennemi, direction)]
@@ -95,6 +107,11 @@ func casesProbablesEnnemi(ennemi Pos, coutTotal map[Pos]int) []Pos {
 			coutMin = coutCase
 		}
 	}
+	return coutMin
+}
+
+func casesProbablesEnnemi(ennemi Pos, coutTotal map[Pos]int) []Pos {
+	coutMin := distanceEnnemi(ennemi, coutTotal)
 	if coutMin <= 0 {
 		return nil
 	}
