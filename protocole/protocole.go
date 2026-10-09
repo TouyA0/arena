@@ -107,3 +107,9 @@ func LireBloc(s *bufio.Scanner) (Etat, error) {
 func Repondre(action string) {
 	fmt.Println(action)
 }
+
+func NouveauLecteur(entree io.Reader) *bufio.Scanner {
+	scanner := bufio.NewScanner(entree)
+	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
+	return scanner
+}
