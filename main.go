@@ -3,20 +3,44 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"robot/carte"
+	"robot/ia"
+	"robot/protocole"
 )
 
-func main() {
+func lireOptions() (string, int) {
 	chemin := flag.String("carte", "", "fichier .map")
 	joueur := flag.Int("joueur", 0, "1 ou 2")
 	flag.Parse()
+	return *chemin, *joueur
+}
 
-	c, err := carte.Charger(*chemin)
+func main() {
+	cheminCarte, joueur := lireOptions()
+
+	c, err := carte.Charger(cheminCarte)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	fmt.Fprintf(os.Stderr, "joueur %d, carte %q chargée\n", *joueur, c.Nom)
+	fmt.Fprintf(os.Stderr, "joueur %d, carte %q chargée\n", joueur, c.Nom)
+
+	lecteur := protocole.NouveauLecteur(os.Stdin)
+	for {
+		etat, err := protocole.LireBloc(lecteur)
+		if err == io.EOF {
+			return // fin de partie
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "bloc invalide :", err)
+			protocole.Repondre("ATTENDS")
+			continue
+		}
+		action, raison := ia.Decider(etat, c)
+		fmt.Fprintf(os.Stderr, "T%d | %s | %s\n", etat.Tour, action, raison)
+		protocole.Repondre(action)
+	}
 }
