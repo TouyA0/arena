@@ -103,3 +103,7 @@ func LireBloc(s *bufio.Scanner) (Etat, error) {
 	}
 	return Etat{}, io.EOF
 }
+
+func Repondre(action string) {
+	fmt.Println(action)
+}
