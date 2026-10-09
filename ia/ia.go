@@ -11,9 +11,24 @@ const (
 	SansLimite  = -1 // pas de cout max pour aller chercher un objet
 )
 
-func Decider(etat protocole.Etat, c carte.Carte) (string, string) {
+type Cerveau struct {
+	carte       carte.Carte
+	ennemiAvant Pos
+	dejaJoue    bool
+}
+
+func NouveauCerveau(c carte.Carte) *Cerveau {
+	return &Cerveau{carte: c}
+}
+
+func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
+	c := cerveau.carte
 	moi := Pos{etat.Moi.X, etat.Moi.Y}
 	ennemi := Pos{etat.Ennemi.X, etat.Ennemi.Y}
+
+	ennemiABouge := cerveau.dejaJoue && ennemi != cerveau.ennemiAvant
+	cerveau.ennemiAvant = ennemi
+	cerveau.dejaJoue = true
 
 	directionTir, peutTirer := directionDeTir(c, moi, ennemi)
 	aDesMunitions := etat.Moi.MUN != 0
@@ -22,6 +37,13 @@ func Decider(etat protocole.Etat, c carte.Carte) (string, string) {
 	}
 
 	coutTotal, premierPas := Distances(c, moi, ennemi, etat.Moi.VIE)
+
+	if ennemiABouge && aDesMunitions {
+		directionAnticipee, touche := tirAnticipe(c, moi, ennemi, coutTotal)
+		if touche {
+			return "TIRE " + directionAnticipee, "tir anticipé sur son prochain pas"
+		}
+	}
 
 	if etat.Moi.VIE <= SeuilPVBas {
 		direction := versObjet(etat.Objets, "SOIN", moi, coutTotal, premierPas, SansLimite)
@@ -48,6 +70,32 @@ func Decider(etat protocole.Etat, c carte.Carte) (string, string) {
 	}
  
 	return "ATTENDS", "rien d'utile à faire"
+}
+
+func tirAnticipe(c carte.Carte, moi, ennemi Pos, coutTotal map[Pos]int) (string, bool) {
+	coutMin := -1
+	for _, direction := range directions {
+		coutCase, atteignable := coutTotal[voisin(ennemi, direction)]
+		if atteignable && (coutMin == -1 || coutCase < coutMin) {
+			coutMin = coutCase
+		}
+	}
+	if coutMin <= 0 {
+		return "", false
+	}
+
+	for _, direction := range directions {
+		caseFuture := voisin(ennemi, direction)
+		coutCase, atteignable := coutTotal[caseFuture]
+		if !atteignable || coutCase != coutMin {
+			continue
+		}
+		directionTir, touche := directionDeTir(c, moi, caseFuture)
+		if touche {
+			return directionTir, true
+		}
+	}
+	return "", false
 }
 
 func versObjet(objets []protocole.Objet, typeVoulu string, moi Pos,
