@@ -6,10 +6,11 @@ import (
 )
 
 const (
-	Portee      = 5  // dist max d'un tir
-	ObjetProche = 3  // dist max pour considérer un objet comme proche
-	SansLimite  = -1 // pas de cout max pour aller chercher un objet
-	PatienceMax = 3  // nombre de tours max a attendre l'ennemi
+	Portee         = 5  // dist max d'un tir
+	ObjetProche    = 3  // dist max pour considérer un objet comme proche
+	SansLimite     = -1 // pas de cout max pour aller chercher un objet
+	PatienceMax    = 3  // nombre de tours max a attendre l'ennemi
+	DetourBouclier = 10
 
 	PVMax          = 100
 	GainSoin       = 30
@@ -71,6 +72,13 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 		direction := versObjet(etat.Objets, "MUNITION", moi, coutTotal, premierPas, SansLimite)
 		if direction != "" {
 			return "AVANCE " + direction, "plus de munitions, va recharger"
+		}
+	}
+
+	if etat.Moi.BOUCLIER == 0 {
+		direction := versObjet(etat.Objets, "BOUCLIER", moi, coutTotal, premierPas, DetourBouclier)
+		if direction != "" {
+			return "AVANCE " + direction, "va chercher un bouclier"
 		}
 	}
 
