@@ -1,0 +1,39 @@
+Partie sur Le Dedale, joueur 1
+T1 | (1,1) 100 PV | AVANCE E | approche d'une case de tir
+T2 | (2,1) 100 PV | AVANCE E | approche d'une case de tir
+T3 | (3,1) 100 PV | AVANCE E | approche d'une case de tir
+T4 | (4,1) 100 PV | AVANCE E | approche d'une case de tir
+T5 | (5,1) 100 PV | RADAR | ennemi perdu de vue
+T6 | (5,1) 100 PV | AVANCE S | approche d'une case de tir
+T7 | (5,2) 100 PV | AVANCE S | approche d'une case de tir
+T8 | (5,3) 100 PV | AVANCE O | approche d'une case de tir
+T9 | (4,3) 100 PV | AVANCE O | approche d'une case de tir
+T10 | (3,3) 100 PV | AVANCE S | approche d'une case de tir
+T11 | (3,4) 100 PV | AVANCE S | approche d'une case de tir
+T12 | (3,5) 100 PV | AVANCE E | approche d'une case de tir
+T13 | (4,5) 100 PV | AVANCE E | approche d'une case de tir
+T14 | (5,5) 100 PV | AVANCE E | approche d'une case de tir
+T15 | (6,5) 100 PV | RADAR | ennemi perdu de vue
+T16 | (6,5) 100 PV | AVANCE E | approche d'une case de tir
+T17 | (7,5) 100 PV | AVANCE N | approche d'une case de tir
+T18 | (7,4) 100 PV | AVANCE N | approche d'une case de tir
+T19 | (7,3) 100 PV | AVANCE N | approche d'une case de tir
+T20 | (7,2) 100 PV | AVANCE N | approche d'une case de tir
+T21 | (7,1) 100 PV | AVANCE E | approche d'une case de tir
+T22 | (8,1) 100 PV | AVANCE E | approche d'une case de tir
+T23 | (9,1) 100 PV | AVANCE E | approche d'une case de tir
+T24 | (10,1) 100 PV | AVANCE E | approche d'une case de tir
+T25 | (11,1) 100 PV | RADAR | ennemi perdu de vue
+T26 | (11,1) 100 PV | AVANCE E | approche d'une case de tir
+T27 | (12,1) 100 PV | AVANCE E | approche d'une case de tir
+T28 | (13,1) 100 PV | AVANCE S | approche d'une case de tir
+T29 | (13,2) 100 PV | AVANCE S | approche d'une case de tir
+T30 | (13,3) 100 PV | AVANCE S | approche d'une case de tir
+T31 | (13,4) 100 PV | AVANCE S | approche d'une case de tir
+T32 | (13,5) 100 PV | ATTENDS | attend qu'il entre dans ma ligne de tir
+T33 | (13,5) 100 PV | AVANCE S | approche d'une case de tir
+T34 | (13,6) 100 PV | TIRE O | ennemi aligné
+T35 | (13,6) 80 PV | TIRE O | ennemi aligné
+T36 | (13,6) 60 PV | TIRE O | ennemi aligné
+T37 | (13,6) 40 PV | TIRE O | ennemi aligné
+T38 | (13,6) 20 PV | TIRE O | ennemi aligné
