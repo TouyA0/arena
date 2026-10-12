@@ -62,7 +62,7 @@ func Lire(lignes []string) (Etat, error) {
 			if okMoi {
 				return Etat{}, fmt.Errorf("MOI: en double")
 			}
-			robot, err := LireRobot(champs)
+			robot, err := lireRobot(champs)
 			if err != nil {
 				return Etat{}, err
 			}
@@ -73,7 +73,7 @@ func Lire(lignes []string) (Etat, error) {
 			if okEnnemi {
 				return Etat{}, fmt.Errorf("ENNEMI: en double")
 			}
-			robot, err := LireRobot(champs)
+			robot, err := lireRobot(champs)
 			if err != nil {
 				return Etat{}, err
 			}
@@ -82,13 +82,11 @@ func Lire(lignes []string) (Etat, error) {
 			okEnnemi = true
 
 		case "OBJET":
-			objet, err := LireObjet(champs)
+			objet, err := lireObjet(champs)
 			if err != nil {
 				return Etat{}, err
 			}
 			e.Objets = append(e.Objets, objet)
-
-		default:
 		}
 	}
 	if !okTour || !okMoi {
@@ -97,9 +95,9 @@ func Lire(lignes []string) (Etat, error) {
 	return e, nil
 }
 
-// LireRobot lit "MOI x y VIE v" ou "ENNEMI x y VIE v", suivi éventuellement
+// lireRobot lit "MOI x y VIE v" ou "ENNEMI x y VIE v", suivi éventuellement
 // de "MUN m" et "BOUCLIER b". Les champs inconnus en fin de ligne sont ignorés.
-func LireRobot(champs []string) (Robot, error) {
+func lireRobot(champs []string) (Robot, error) {
 	nom := champs[0]
 	if len(champs) < 5 {
 		return Robot{}, fmt.Errorf("%s: champ manquant", nom)
@@ -137,8 +135,8 @@ func LireRobot(champs []string) (Robot, error) {
 	return robot, nil
 }
 
-// LireObjet lit une ligne "OBJET x y TYPE".
-func LireObjet(champs []string) (Objet, error) {
+// lireObjet lit une ligne "OBJET x y TYPE".
+func lireObjet(champs []string) (Objet, error) {
 	if len(champs) < 4 {
 		return Objet{}, fmt.Errorf("OBJET: champ manquant")
 	}

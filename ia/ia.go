@@ -5,24 +5,29 @@ import (
 	"robot/protocole"
 )
 
+// Réglages de la stratégie.
 const (
-	Portee         = 5  // dist max d'un tir
-	ObjetProche    = 3  // dist max pour considérer un objet comme proche
-	SansLimite     = -1 // pas de cout max pour aller chercher un objet
-	PatienceMax    = 3  // nombre de tours max a attendre l'ennemi
-	DetourBouclier = 10
+	// Tir et déplacements
+	Portee         = 5  // un tir va jusqu'à 5 cases
+	ObjetProche    = 3  // on fait un détour pour un objet s'il est à 3 pas ou moins
+	SansLimite     = -1 // pas de distance maximale pour aller chercher un objet
+	PatienceMax    = 3  // on attend au maximum 3 tours que l'ennemi vienne à nous
+	DetourBouclier = 10 // un bouclier vaut un détour jusqu'à 10 pas
 
-	PVMax          = 100
-	GainSoin       = 30
-	MunSuffisantes = 10
+	// Objets
+	PVMax          = 100 // PV au début de la partie, et maximum possible
+	GainSoin       = 30  // PV rendus par un soin
+	MunSuffisantes = 10  // au-delà, ramasser des munitions ne sert à rien
 
-	RatesMax          = 2  // tirs anticipés ratés d'affilée avant de faire une pause
-	PauseAnticipation = 10 // nombre de tours sans tir anticipé après trop de ratés
+	// Tir anticipé
+	RatesMax          = 2  // après 2 tirs anticipés ratés de suite, on fait une pause
+	PauseAnticipation = 10 // la pause dure 10 tours
 
-	Vision       = 4  // distance à laquelle on voit l'ennemi et les objets (v3)
-	OubliEnnemi  = 6  // tours sans voir l'ennemi avant de lancer le radar
-	DelaiRadar   = 10 // tours minimum entre deux radars
-	FraicheurMax = 2  // tours max depuis la dernière vue pour tirer sur sa position prévue
+	// Brouillard
+	Vision       = 4  // on voit l'ennemi et les objets à 4 cases ou moins
+	OubliEnnemi  = 6  // après 6 tours sans le voir, on lance le radar
+	DelaiRadar   = 10 // au moins 10 tours entre deux radars
+	FraicheurMax = 2  // on tire sur sa position devinée seulement si on l'a vu il y a 2 tours ou moins
 )
 
 // Cerveau garde la mémoire du robot d'un tour à l'autre : la carte, ce qu'on
@@ -54,6 +59,7 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 	c := cerveau.carte
 	moi := Pos{etat.Moi.X, etat.Moi.Y}
 
+	// 1. Mémoire : on met à jour ce qu'on sait de l'ennemi et des objets.
 	if !cerveau.dejaJoue {
 		cerveau.ennemiConnu = departEnnemi(c, moi)
 		cerveau.dejaJoue = true
@@ -68,25 +74,27 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 	ilBouge := !ilEstImmobile
 	infoFraiche := etat.Tour-cerveau.vuAuTour <= FraicheurMax
 
+	// 2. Si on ne le voit pas, on devine qu'il a avancé d'un pas vers nous.
 	if !etat.EnnemiVu {
 		coutAvant, _ := Distances(c, moi, ennemi, etat.Moi.VIE)
 		ennemi = positionPrevue(ennemi, moi, coutAvant)
 		cerveau.ennemiConnu = ennemi
 	}
 
+	// 3. On reprend l'attente et les tirs anticipés du tour d'avant.
 	dejaAttendu := cerveau.toursAttente
 	cerveau.toursAttente = 0
 	plusProcheAvant := cerveau.plusProche
 	cerveau.plusProche = -1
 
-	if cerveau.aVise {
+	if cerveau.aVise && etat.EnnemiVu {
 		if ennemi == cerveau.caseVisee {
 			cerveau.rates = 0
 		} else {
 			cerveau.rates++
 		}
-		cerveau.aVise = false
 	}
+	cerveau.aVise = false
 	if cerveau.rates >= RatesMax {
 		cerveau.pause = PauseAnticipation
 		cerveau.rates = 0
@@ -96,6 +104,7 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 		cerveau.pause--
 	}
 
+	// 4. Tirer s'il est aligné (vu, ou à sa position devinée).
 	directionTir, peutTirer := directionDeTir(c, moi, ennemi)
 	aDesMunitions := etat.Moi.MUN != 0
 	if etat.EnnemiVu && peutTirer && aDesMunitions {
@@ -107,11 +116,14 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 		return "TIRE " + directionTir, "tir sur sa position prévue"
 	}
 
+	// 5. Radar si on l'a perdu depuis trop longtemps.
 	if radarUtile(cerveau, etat, moi) {
 		cerveau.dernierRadar = etat.Tour
 		return "RADAR", "ennemi perdu de vue"
 	}
 
+	// 6. Choisir où aller, par priorité : bouclier, tir anticipé, soin,
+	//    munitions, objets, puis une case d'où tirer sur lui.
 	coutTotal, premierPas := Distances(c, moi, ennemi, etat.Moi.VIE)
 	coutEnnemi, _ := Distances(c, ennemi, moi, cerveau.vieEnnemi)
 
@@ -158,6 +170,7 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 		return "ATTENDS", "rien d'utile à faire"
 	}
 
+	// 7. Ne pas entrer dans sa ligne de tir : on attend qu'il entre dans la nôtre.
 	dangereuse := exposee(c, voisin(moi, choix), ennemi, coutTotal)
 	if dangereuse && ilBouge && (seRapproche || dejaAttendu < PatienceMax) {
 		cerveau.toursAttente = dejaAttendu
