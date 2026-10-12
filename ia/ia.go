@@ -74,9 +74,18 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 	}
 
 	coutTotal, premierPas := Distances(c, moi, ennemi, etat.Moi.VIE)
+	coutEnnemi, _ := Distances(c, ennemi, moi, etat.Ennemi.VIE)
 
 	distance := distanceEnnemi(ennemi, coutTotal)
 	seRapproche := distance != -1 && (plusProcheAvant == -1 || distance < plusProcheAvant)
+
+	if etat.Moi.BOUCLIER == 0 {
+		boucliers := bouclierDeMonCote(etat.Objets, coutTotal, coutEnnemi)
+		direction := versObjet(boucliers, "BOUCLIER", moi, coutTotal, premierPas, DetourBouclier)
+		if direction != "" {
+			return "AVANCE " + direction, "va chercher le bouclier de son côté"
+		}
+	}
 
 	if ennemiABouge && aDesMunitions && peutAnticiper {
 		directionAnticipee, caseVisee, touche := tirAnticipe(c, moi, ennemi, coutTotal)
@@ -180,6 +189,23 @@ func exposee(c carte.Carte, caseTestee, ennemi Pos, coutTotal map[Pos]int) bool 
 		}
 	}
 	return false
+}
+
+func bouclierDeMonCote(objets []protocole.Objet, coutTotal, coutEnnemi map[Pos]int) []protocole.Objet {
+	var boucliers []protocole.Objet
+
+	for _, objet := range objets {
+		if objet.Type != "BOUCLIER" {
+			continue
+		}
+		caseObjet := Pos{objet.X, objet.Y}
+		monCout, jePeux := coutTotal[caseObjet]
+		sonCout, ilPeut := coutEnnemi[caseObjet]
+		if jePeux && (!ilPeut || monCout < sonCout) {
+			boucliers = append(boucliers, objet)
+		}
+	}
+	return boucliers
 }
 
 func objetsUtiles(etat protocole.Etat) []protocole.Objet {
