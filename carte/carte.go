@@ -92,7 +92,7 @@ func lireEntete(nom string, lignes []string, c *Carte) (int, error) {
 			if c.Nom == "" {
 				return 0, fmt.Errorf("%s ligne %d : NOM attend une valeur", nom, num_ligne)
 			}
-		
+
 		case "DIFFICULTE":
 			d, err := entier(champs, 1)
 			if err != nil || len(champs) != 2 || d < 1 || d > 3 {
@@ -155,21 +155,21 @@ func lireGrille(nom string, lignes []string, debut int, c *Carte) error {
 
 func verifierCases(nom string, debut int, c *Carte) error {
 	vu1, vu2 := false, false
- 
+
 	for y, ligne := range c.Grille {
 		for x, s := range []rune(ligne) {
 			numLigne := debut + y + 1
 			numColonne := x + 1
- 
+
 			if !strings.ContainsRune("#.~^+*!$12", s) {
 				return fmt.Errorf("%s ligne %d colonne %d : symbole inconnu %q", nom, numLigne, numColonne, string(s))
 			}
- 
+
 			surBord := x == 0 || y == 0 || x == c.Largeur-1 || y == c.Hauteur-1
 			if surBord && s != '#' {
 				return fmt.Errorf("%s ligne %d colonne %d : la bordure doit être un mur", nom, numLigne, numColonne)
 			}
- 
+
 			if s == '1' {
 				if vu1 {
 					return fmt.Errorf("%s ligne %d colonne %d : départ du joueur 1 déjà défini", nom, numLigne, numColonne)
@@ -186,7 +186,7 @@ func verifierCases(nom string, debut int, c *Carte) error {
 			}
 		}
 	}
- 
+
 	if !vu1 {
 		return fmt.Errorf("%s : aucun départ pour le joueur 1", nom)
 	}

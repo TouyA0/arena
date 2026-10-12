@@ -1,8 +1,8 @@
 package tests
 
 import (
-	"testing"
 	"robot/protocole"
+	"testing"
 )
 
 func TestBlocValide(t *testing.T) {

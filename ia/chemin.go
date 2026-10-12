@@ -6,11 +6,11 @@ func Distances(c carte.Carte, depart, ennemi Pos, pv int) (map[Pos]int, map[Pos]
 	coutTotal := map[Pos]int{depart: 0}
 	premierPas := map[Pos]string{}
 	casesAVisiter := []Pos{depart}
- 
+
 	for len(casesAVisiter) > 0 {
 		caseActuelle := casesAVisiter[0]
 		casesAVisiter = casesAVisiter[1:] // retire la case qu'on traite
- 
+
 		for _, direction := range directions {
 			caseVoisine := voisin(caseActuelle, direction)
 			if caseVoisine == ennemi {
@@ -20,13 +20,13 @@ func Distances(c carte.Carte, depart, ennemi Pos, pv int) (map[Pos]int, map[Pos]
 			if coutVoisine == Interdit {
 				continue
 			}
- 
+
 			nouveauCout := coutTotal[caseActuelle] + coutVoisine
 			ancienCout, dejaNotee := coutTotal[caseVoisine]
 			if dejaNotee && ancienCout <= nouveauCout {
 				continue // on connaît déjà un chemin aussi bon
 			}
- 
+
 			coutTotal[caseVoisine] = nouveauCout
 			if caseActuelle == depart {
 				premierPas[caseVoisine] = direction // on vient du robot

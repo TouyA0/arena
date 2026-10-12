@@ -11,11 +11,11 @@ import (
 const MunIllimitees = -1
 
 type Robot struct {
-	NOM 		string
-	X, Y 		int
-	VIE 		int
-	MUN 		int
-	BOUCLIER 	int
+	NOM      string
+	X, Y     int
+	VIE      int
+	MUN      int
+	BOUCLIER int
 }
 
 type Objet struct {
@@ -24,7 +24,7 @@ type Objet struct {
 }
 
 type Etat struct {
-	Tour 		int;
+	Tour        int
 	Moi, Ennemi Robot
 	Objets      []Objet
 }
@@ -53,7 +53,7 @@ func Lire(lignes []string) (Etat, error) {
 			}
 			e.Tour = nb_tour
 			okTour = true
-		
+
 		case "MOI":
 			if okMoi {
 				return Etat{}, fmt.Errorf("MOI: en double")
