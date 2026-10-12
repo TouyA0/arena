@@ -15,6 +15,9 @@ const (
 	PVMax          = 100
 	GainSoin       = 30
 	MunSuffisantes = 10
+
+	RatesMax          = 2  // tirs anticipés ratés d'affilée avant de faire une pause
+	PauseAnticipation = 10 // nombre de tours sans tir anticipé après trop de ratés
 )
 
 type Cerveau struct {
@@ -23,6 +26,10 @@ type Cerveau struct {
 	dejaJoue     bool
 	toursAttente int
 	plusProche   int
+	caseVisee    Pos
+	aVise        bool
+	rates        int
+	pause        int
 }
 
 func NouveauCerveau(c carte.Carte) *Cerveau {
@@ -43,6 +50,23 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 	plusProcheAvant := cerveau.plusProche
 	cerveau.plusProche = -1
 
+	if cerveau.aVise {
+		if ennemi == cerveau.caseVisee {
+			cerveau.rates = 0
+		} else {
+			cerveau.rates++
+		}
+		cerveau.aVise = false
+	}
+	if cerveau.rates >= RatesMax {
+		cerveau.pause = PauseAnticipation
+		cerveau.rates = 0
+	}
+	peutAnticiper := cerveau.pause == 0
+	if cerveau.pause > 0 {
+		cerveau.pause--
+	}
+
 	directionTir, peutTirer := directionDeTir(c, moi, ennemi)
 	aDesMunitions := etat.Moi.MUN != 0
 	if peutTirer && aDesMunitions {
@@ -54,9 +78,11 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 	distance := distanceEnnemi(ennemi, coutTotal)
 	seRapproche := distance != -1 && (plusProcheAvant == -1 || distance < plusProcheAvant)
 
-	if ennemiABouge && aDesMunitions {
-		directionAnticipee, touche := tirAnticipe(c, moi, ennemi, coutTotal)
+	if ennemiABouge && aDesMunitions && peutAnticiper {
+		directionAnticipee, caseVisee, touche := tirAnticipe(c, moi, ennemi, coutTotal)
 		if touche {
+			cerveau.caseVisee = caseVisee
+			cerveau.aVise = true
 			return "TIRE " + directionAnticipee, "tir anticipé sur son prochain pas"
 		}
 	}
@@ -135,14 +161,14 @@ func casesProbablesEnnemi(ennemi Pos, coutTotal map[Pos]int) []Pos {
 	return cases
 }
 
-func tirAnticipe(c carte.Carte, moi, ennemi Pos, coutTotal map[Pos]int) (string, bool) {
+func tirAnticipe(c carte.Carte, moi, ennemi Pos, coutTotal map[Pos]int) (string, Pos, bool) {
 	for _, caseFuture := range casesProbablesEnnemi(ennemi, coutTotal) {
 		directionTir, touche := directionDeTir(c, moi, caseFuture)
 		if touche {
-			return directionTir, true
+			return directionTir, caseFuture, true
 		}
 	}
-	return "", false
+	return "", Pos{}, false
 }
 
 func exposee(c carte.Carte, caseTestee, ennemi Pos, coutTotal map[Pos]int) bool {
