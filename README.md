@@ -12,7 +12,10 @@ Il marche avec les trois versions du protocole :
 
 On utilise seulement la bibliothèque standard de Go.
 
-Membres du groupe : *(à compléter)*
+## Membres du groupe
+
+- Quentin Guirlinger : protocole, IA
+- Aryeh Henin : carte, journal
 
 ## Installation
 
