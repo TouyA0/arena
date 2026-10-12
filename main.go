@@ -8,6 +8,7 @@ import (
 
 	"robot/carte"
 	"robot/ia"
+	"robot/journal"
 	"robot/protocole"
 )
 
@@ -18,30 +19,42 @@ func lireOptions() (string, int) {
 	return *chemin, *joueur
 }
 
-func main() {
+func lancer() int {
 	cheminCarte, joueur := lireOptions()
 
 	c, err := carte.Charger(cheminCarte)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
-	fmt.Fprintf(os.Stderr, "joueur %d, carte %q chargée\n", joueur, c.Nom)
+
+	j, err := journal.Ouvrir("partie.log")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+	defer journal.Fermer(j)
+	journal.Debut(j, c.Nom, joueur)
 
 	cerveau := ia.NouveauCerveau(c)
 	lecteur := protocole.NouveauLecteur(os.Stdin)
 	for {
 		etat, err := protocole.LireBloc(lecteur)
 		if err == io.EOF {
-			return // fin de partie
+			return 0
 		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "bloc invalide :", err)
+			journal.BlocInvalide(j, err)
 			protocole.Repondre("ATTENDS")
 			continue
 		}
 		action, raison := ia.Decider(cerveau, etat)
 		fmt.Fprintf(os.Stderr, "T%d | %s | %s\n", etat.Tour, action, raison)
+		journal.Tour(j, etat, action, raison)
 		protocole.Repondre(action)
 	}
+}
+
+func main() {
+	os.Exit(lancer())
 }
