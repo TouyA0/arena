@@ -22,9 +22,11 @@ const (
 	Vision       = 4  // distance à laquelle on voit l'ennemi et les objets (v3)
 	OubliEnnemi  = 6  // tours sans voir l'ennemi avant de lancer le radar
 	DelaiRadar   = 10 // tours minimum entre deux radars
-	FraicheurMax = 2
+	FraicheurMax = 2  // tours max depuis la dernière vue pour tirer sur sa position prévue
 )
 
+// Cerveau garde la mémoire du robot d'un tour à l'autre : la carte, ce qu'on
+// sait de l'ennemi et des objets, l'attente en cours et les tirs anticipés.
 type Cerveau struct {
 	carte        carte.Carte
 	dejaJoue     bool
@@ -41,10 +43,13 @@ type Cerveau struct {
 	pause        int
 }
 
+// NouveauCerveau prépare un cerveau vide pour une partie sur la carte c.
 func NouveauCerveau(c carte.Carte) *Cerveau {
 	return &Cerveau{carte: c, plusProche: -1, vieEnnemi: PVMax, vuAuTour: -1, dernierRadar: -DelaiRadar}
 }
 
+// Decider choisit l'action du tour à partir de l'état reçu et de la mémoire,
+// et renvoie l'action à envoyer à l'arbitre et la raison écrite dans le journal.
 func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 	c := cerveau.carte
 	moi := Pos{etat.Moi.X, etat.Moi.Y}
@@ -171,6 +176,7 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 	return "AVANCE " + choix, raison
 }
 
+// memoriser met à jour ce qu'on sait de l'ennemi et des objets avec l'état reçu.
 func memoriser(cerveau *Cerveau, etat protocole.Etat, moi Pos) {
 	if etat.EnnemiVu {
 		cerveau.ennemiConnu = Pos{etat.Ennemi.X, etat.Ennemi.Y}
@@ -189,6 +195,7 @@ func memoriser(cerveau *Cerveau, etat protocole.Etat, moi Pos) {
 	cerveau.objetsConnus = append(gardes, etat.Objets...)
 }
 
+// vueComplete dit si l'arbitre nous a tout montré (v1, v2, ou juste après un radar).
 func vueComplete(cerveau *Cerveau, etat protocole.Etat, moi Pos) bool {
 	if cerveau.dernierRadar == etat.Tour-1 {
 		return true
@@ -204,6 +211,7 @@ func vueComplete(cerveau *Cerveau, etat protocole.Etat, moi Pos) bool {
 	return false
 }
 
+// radarUtile dit s'il faut lancer le radar parce qu'on a perdu l'ennemi.
 func radarUtile(cerveau *Cerveau, etat protocole.Etat, moi Pos) bool {
 	if etat.EnnemiVu || etat.Tour-cerveau.dernierRadar < DelaiRadar {
 		return false
@@ -213,6 +221,7 @@ func radarUtile(cerveau *Cerveau, etat protocole.Etat, moi Pos) bool {
 	return pasVuDepuisLongtemps || plusLaOuJeCroyais
 }
 
+// positionPrevue avance l'ennemi d'un pas vers nous, sans le mettre à moins de 5 cases.
 func positionPrevue(ennemi, moi Pos, coutTotal map[Pos]int) Pos {
 	for _, caseFuture := range casesProbablesEnnemi(ennemi, coutTotal) {
 		if ecart(caseFuture, moi) > Vision {
@@ -222,6 +231,7 @@ func positionPrevue(ennemi, moi Pos, coutTotal map[Pos]int) Pos {
 	return ennemi
 }
 
+// departEnnemi renvoie la case de départ qui n'est pas la nôtre.
 func departEnnemi(c carte.Carte, moi Pos) Pos {
 	depart1 := Pos{c.Depart1.X, c.Depart1.Y}
 	if moi == depart1 {
@@ -230,6 +240,7 @@ func departEnnemi(c carte.Carte, moi Pos) Pos {
 	return depart1
 }
 
+// ecart renvoie la distance |dx| + |dy| entre deux cases, sans tenir compte des murs.
 func ecart(a, b Pos) int {
 	dx := a.X - b.X
 	if dx < 0 {
@@ -242,6 +253,7 @@ func ecart(a, b Pos) int {
 	return dx + dy
 }
 
+// distanceEnnemi renvoie le coût pour aller à côté de l'ennemi, ou -1 si impossible.
 func distanceEnnemi(ennemi Pos, coutTotal map[Pos]int) int {
 	coutMin := -1
 	for _, direction := range directions {
@@ -253,6 +265,7 @@ func distanceEnnemi(ennemi Pos, coutTotal map[Pos]int) int {
 	return coutMin
 }
 
+// casesProbablesEnnemi renvoie les cases où l'ennemi ira s'il vient vers nous.
 func casesProbablesEnnemi(ennemi Pos, coutTotal map[Pos]int) []Pos {
 	coutMin := distanceEnnemi(ennemi, coutTotal)
 	if coutMin <= 0 {
@@ -270,6 +283,7 @@ func casesProbablesEnnemi(ennemi Pos, coutTotal map[Pos]int) []Pos {
 	return cases
 }
 
+// tirAnticipe cherche une direction de tir qui touche l'ennemi sur son prochain pas.
 func tirAnticipe(c carte.Carte, moi, ennemi Pos, coutTotal map[Pos]int) (string, Pos, bool) {
 	for _, caseFuture := range casesProbablesEnnemi(ennemi, coutTotal) {
 		directionTir, touche := directionDeTir(c, moi, caseFuture)
@@ -280,6 +294,7 @@ func tirAnticipe(c carte.Carte, moi, ennemi Pos, coutTotal map[Pos]int) (string,
 	return "", Pos{}, false
 }
 
+// exposee dit si l'ennemi peut tirer sur cette case, maintenant ou après son prochain pas.
 func exposee(c carte.Carte, caseTestee, ennemi Pos, coutTotal map[Pos]int) bool {
 	positionsEnnemi := append([]Pos{ennemi}, casesProbablesEnnemi(ennemi, coutTotal)...)
 	for _, positionEnnemi := range positionsEnnemi {
@@ -291,6 +306,7 @@ func exposee(c carte.Carte, caseTestee, ennemi Pos, coutTotal map[Pos]int) bool 
 	return false
 }
 
+// bouclierDeMonCote garde les boucliers où l'on arrive avant l'ennemi.
 func bouclierDeMonCote(objets []protocole.Objet, coutTotal, coutEnnemi map[Pos]int) []protocole.Objet {
 	var boucliers []protocole.Objet
 
@@ -308,6 +324,7 @@ func bouclierDeMonCote(objets []protocole.Objet, coutTotal, coutEnnemi map[Pos]i
 	return boucliers
 }
 
+// objetsUtiles garde les objets qui nous servent vraiment (pas de soin si on a déjà presque tous nos PV).
 func objetsUtiles(objets []protocole.Objet, robot protocole.Robot) []protocole.Objet {
 	var utiles []protocole.Objet
 
@@ -330,6 +347,7 @@ func objetsUtiles(objets []protocole.Objet, robot protocole.Robot) []protocole.O
 	return utiles
 }
 
+// versObjet renvoie le premier pas vers l'objet le plus proche du type voulu, ou "" s'il n'y en a pas.
 func versObjet(objets []protocole.Objet, typeVoulu string, moi Pos,
 	coutTotal map[Pos]int, premierPas map[Pos]string, coutMax int) string {
 
@@ -356,6 +374,7 @@ func versObjet(objets []protocole.Objet, typeVoulu string, moi Pos,
 	return meilleureDirection
 }
 
+// versCaseDeTir renvoie le premier pas vers la case la plus proche d'où l'on peut tirer sur l'ennemi.
 func versCaseDeTir(c carte.Carte, moi, ennemi Pos,
 	coutTotal map[Pos]int, premierPas map[Pos]string) string {
 
@@ -378,6 +397,7 @@ func versCaseDeTir(c carte.Carte, moi, ennemi Pos,
 	return meilleureDirection
 }
 
+// directionDeTir dit si un tir depuis caseDepart touche la cible (portée 5, murs bloquants) et dans quelle direction.
 func directionDeTir(c carte.Carte, caseDepart, cible Pos) (string, bool) {
 	for _, direction := range directions {
 		caseDuTir := caseDepart

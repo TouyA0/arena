@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// MunIllimitees est la valeur de MUN quand l'arbitre n'envoie pas de munitions
 const MunIllimitees = -1
 
 type Robot struct {
@@ -30,6 +31,8 @@ type Etat struct {
 	Objets      []Objet
 }
 
+// Lire transforme les lignes d'un bloc en Etat. TOUR et MOI sont obligatoires,
+// ENNEMI et OBJET sont facultatifs, les mots-clés inconnus sont ignorés.
 func Lire(lignes []string) (Etat, error) {
 	var e Etat
 	okTour, okMoi, okEnnemi := false, false, false
@@ -72,7 +75,7 @@ func Lire(lignes []string) (Etat, error) {
 			}
 			robot, err := LireRobot(champs)
 			if err != nil {
-				return Etat{}, fmt.Errorf("ENNEMI: erreur de lecture %v", err)
+				return Etat{}, err
 			}
 			e.Ennemi = robot
 			e.EnnemiVu = true
@@ -94,6 +97,8 @@ func Lire(lignes []string) (Etat, error) {
 	return e, nil
 }
 
+// LireRobot lit "MOI x y VIE v" ou "ENNEMI x y VIE v", suivi éventuellement
+// de "MUN m" et "BOUCLIER b". Les champs inconnus en fin de ligne sont ignorés.
 func LireRobot(champs []string) (Robot, error) {
 	nom := champs[0]
 	if len(champs) < 5 {
@@ -132,6 +137,7 @@ func LireRobot(champs []string) (Robot, error) {
 	return robot, nil
 }
 
+// LireObjet lit une ligne "OBJET x y TYPE".
 func LireObjet(champs []string) (Objet, error) {
 	if len(champs) < 4 {
 		return Objet{}, fmt.Errorf("OBJET: champ manquant")
@@ -144,6 +150,8 @@ func LireObjet(champs []string) (Objet, error) {
 	return Objet{X: x_pos, Y: y_pos, Type: champs[3]}, nil
 }
 
+// LireBloc lit les lignes de l'arbitre jusqu'à FIN et renvoie l'état du tour.
+// Elle renvoie io.EOF quand l'entrée est fermée (fin de la partie).
 func LireBloc(s *bufio.Scanner) (Etat, error) {
 	var bloc []string
 	for s.Scan() { // lit la ligne suivante
@@ -156,10 +164,13 @@ func LireBloc(s *bufio.Scanner) (Etat, error) {
 	return Etat{}, io.EOF
 }
 
+// Repondre envoie l'action du tour à l'arbitre sur la sortie standard.
 func Repondre(action string) {
 	fmt.Println(action)
 }
 
+// NouveauLecteur prépare la lecture de l'arbitre, avec des lignes jusqu'à 1 Mo
+// au lieu de 64 Ko par défaut.
 func NouveauLecteur(entree io.Reader) *bufio.Scanner {
 	scanner := bufio.NewScanner(entree)
 	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)

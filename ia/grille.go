@@ -8,6 +8,7 @@ type Pos struct {
 
 var directions = []string{"N", "S", "E", "O"}
 
+// voisin renvoie la case d'à côté dans la direction d (N, S, E ou O).
 func voisin(p Pos, d string) Pos {
 	switch d {
 	case "N":
@@ -22,6 +23,7 @@ func voisin(p Pos, d string) Pos {
 	return p
 }
 
+// Coûts utilisés pour choisir le chemin le moins dangereux.
 const (
 	CoutSol        = 1
 	CoutEau        = 3
@@ -32,6 +34,7 @@ const (
 	Interdit       = -1
 )
 
+// symbole renvoie le caractère de la case p, ou un mur si p est hors de la carte.
 func symbole(c carte.Carte, p Pos) byte {
 	if p.Y < 0 || p.Y >= c.Hauteur || p.X < 0 || p.X >= c.Largeur {
 		return '#' // si extérieur de la carte
@@ -39,6 +42,7 @@ func symbole(c carte.Carte, p Pos) byte {
 	return c.Grille[p.Y][p.X]
 }
 
+// cout renvoie le prix pour entrer sur la case p, ou Interdit si on ne peut pas y aller.
 func cout(c carte.Carte, p Pos, pv int) int {
 	switch symbole(c, p) {
 	case '#':

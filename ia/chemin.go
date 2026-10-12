@@ -2,6 +2,10 @@ package ia
 
 import "robot/carte"
 
+// Distances calcule, depuis la case depart, le coût du chemin le moins cher
+// jusqu'à chaque case atteignable (eau et pièges coûtent plus cher, la case
+// de l'ennemi est bloquée). Elle renvoie aussi, pour chaque case, la direction
+// du premier pas à faire depuis depart pour y aller.
 func Distances(c carte.Carte, depart, ennemi Pos, pv int) (map[Pos]int, map[Pos]string) {
 	coutTotal := map[Pos]int{depart: 0}
 	premierPas := map[Pos]string{}

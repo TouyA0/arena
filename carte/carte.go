@@ -23,6 +23,8 @@ type Carte struct {
 	Depart2    Position
 }
 
+// Charger lit un fichier .map, vérifie qu'il est valide et renvoie la carte,
+// ou une erreur qui donne le fichier, la ligne et le problème.
 func Charger(chemin string) (Carte, error) {
 	nom := filepath.Base(chemin)
 
@@ -60,6 +62,7 @@ func Charger(chemin string) (Carte, error) {
 	return c, nil
 }
 
+// lireEntete lit les lignes NOM, DIFFICULTE, TOURS et TAILLE et renvoie l'indice de la première ligne de la grille.
 func lireEntete(nom string, lignes []string, c *Carte) (int, error) {
 	vu := map[string]bool{}
 	i := 0
@@ -125,6 +128,7 @@ func lireEntete(nom string, lignes []string, c *Carte) (int, error) {
 	return i, nil
 }
 
+// entier convertit champs[i] en entier, avec une erreur si le champ manque.
 func entier(champs []string, i int) (int, error) {
 	if i >= len(champs) {
 		return 0, fmt.Errorf("champ manquant")
@@ -132,6 +136,7 @@ func entier(champs []string, i int) (int, error) {
 	return strconv.Atoi(champs[i])
 }
 
+// lireGrille garde les lignes de la grille et vérifie leur nombre et leur largeur.
 func lireGrille(nom string, lignes []string, debut int, c *Carte) error {
 	grille := lignes[debut:]
 
@@ -153,6 +158,7 @@ func lireGrille(nom string, lignes []string, debut int, c *Carte) error {
 	return nil
 }
 
+// verifierCases vérifie les symboles, la bordure en murs et les deux départs.
 func verifierCases(nom string, debut int, c *Carte) error {
 	vu1, vu2 := false, false
 

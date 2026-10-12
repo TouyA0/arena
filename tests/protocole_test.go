@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// TestBlocValide vérifie qu'un bloc normal donne les bonnes valeurs.
 func TestBlocValide(t *testing.T) {
 	lignes := []string{"TOUR 12", "MOI 3 4 VIE 80", "ENNEMI 7 4 VIE 40"}
 
@@ -17,6 +18,7 @@ func TestBlocValide(t *testing.T) {
 	}
 }
 
+// TestBlocsAcceptes vérifie que le bruit est toléré : lignes vides, espaces, tabulations, \r, mots-clés et champs inconnus.
 func TestBlocsAcceptes(t *testing.T) {
 	blocs := [][]string{
 		{"", "TOUR 12", "MOI 3 4 VIE 80", "ENNEMI 7 4 VIE 40"},
@@ -34,6 +36,7 @@ func TestBlocsAcceptes(t *testing.T) {
 	}
 }
 
+// TestBlocsRefuses vérifie qu'un bloc mal formé est refusé au lieu d'être mal lu.
 func TestBlocsRefuses(t *testing.T) {
 	blocs := [][]string{
 		{"MOI 3 4 VIE 80", "ENNEMI 7 4 VIE 40"},
@@ -49,6 +52,18 @@ func TestBlocsRefuses(t *testing.T) {
 		if _, err := protocole.Lire(bloc); err == nil {
 			t.Errorf("bloc %q accepté alors qu'il est invalide", bloc)
 		}
+	}
+}
+
+// TestEnnemiCache vérifie qu'un bloc sans ENNEMI est accepté avec EnnemiVu à false.
+func TestBlocV2(t *testing.T) {
+	bloc := []string{"TOUR 12", "MOI 3 4 VIE 80 MUN 6 BOUCLIER 2", "ENNEMI 7 4 VIE 40", "OBJET 2 3 SOIN", "OBJET 11 3 MUNITION"}
+	e, err := protocole.Lire(bloc)
+	if err != nil {
+		t.Fatalf("bloc refusé : %v", err)
+	}
+	if e.Moi.MUN != 6 || e.Moi.BOUCLIER != 2 || len(e.Objets) != 2 || e.Objets[0].Type != "SOIN" {
+		t.Errorf("mauvaises valeurs : %+v", e)
 	}
 }
 
