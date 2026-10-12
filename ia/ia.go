@@ -18,12 +18,21 @@ const (
 
 	RatesMax          = 2  // tirs anticipés ratés d'affilée avant de faire une pause
 	PauseAnticipation = 10 // nombre de tours sans tir anticipé après trop de ratés
+
+	Vision       = 4  // distance à laquelle on voit l'ennemi et les objets (v3)
+	OubliEnnemi  = 6  // tours sans voir l'ennemi avant de lancer le radar
+	DelaiRadar   = 10 // tours minimum entre deux radars
+	FraicheurMax = 2
 )
 
 type Cerveau struct {
 	carte        carte.Carte
-	ennemiAvant  Pos
 	dejaJoue     bool
+	ennemiConnu  Pos
+	vieEnnemi    int
+	vuAuTour     int
+	objetsConnus []protocole.Objet
+	dernierRadar int
 	toursAttente int
 	plusProche   int
 	caseVisee    Pos
@@ -33,17 +42,32 @@ type Cerveau struct {
 }
 
 func NouveauCerveau(c carte.Carte) *Cerveau {
-	return &Cerveau{carte: c, plusProche: -1}
+	return &Cerveau{carte: c, plusProche: -1, vieEnnemi: PVMax, vuAuTour: -1, dernierRadar: -DelaiRadar}
 }
 
 func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 	c := cerveau.carte
 	moi := Pos{etat.Moi.X, etat.Moi.Y}
-	ennemi := Pos{etat.Ennemi.X, etat.Ennemi.Y}
 
-	ennemiABouge := cerveau.dejaJoue && ennemi != cerveau.ennemiAvant
-	cerveau.ennemiAvant = ennemi
-	cerveau.dejaJoue = true
+	if !cerveau.dejaJoue {
+		cerveau.ennemiConnu = departEnnemi(c, moi)
+		cerveau.dejaJoue = true
+	}
+	ennemiAvant := cerveau.ennemiConnu
+	vuAuTourAvant := cerveau.vuAuTour
+	memoriser(cerveau, etat, moi)
+	ennemi := cerveau.ennemiConnu
+	objets := cerveau.objetsConnus
+	vuAuTourPrecedent := vuAuTourAvant == etat.Tour-1
+	ilEstImmobile := etat.EnnemiVu && vuAuTourPrecedent && ennemi == ennemiAvant
+	ilBouge := !ilEstImmobile
+	infoFraiche := etat.Tour-cerveau.vuAuTour <= FraicheurMax
+
+	if !etat.EnnemiVu {
+		coutAvant, _ := Distances(c, moi, ennemi, etat.Moi.VIE)
+		ennemi = positionPrevue(ennemi, moi, coutAvant)
+		cerveau.ennemiConnu = ennemi
+	}
 
 	dejaAttendu := cerveau.toursAttente
 	cerveau.toursAttente = 0
@@ -69,25 +93,34 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 
 	directionTir, peutTirer := directionDeTir(c, moi, ennemi)
 	aDesMunitions := etat.Moi.MUN != 0
-	if peutTirer && aDesMunitions {
+	if etat.EnnemiVu && peutTirer && aDesMunitions {
 		return "TIRE " + directionTir, "ennemi aligné"
+	}
+	if !etat.EnnemiVu && infoFraiche && peutTirer && aDesMunitions {
+		cerveau.caseVisee = ennemi
+		cerveau.aVise = true
+		return "TIRE " + directionTir, "tir sur sa position prévue"
+	}
+
+	if radarUtile(cerveau, etat, moi) {
+		cerveau.dernierRadar = etat.Tour
+		return "RADAR", "ennemi perdu de vue"
 	}
 
 	coutTotal, premierPas := Distances(c, moi, ennemi, etat.Moi.VIE)
-	coutEnnemi, _ := Distances(c, ennemi, moi, etat.Ennemi.VIE)
+	coutEnnemi, _ := Distances(c, ennemi, moi, cerveau.vieEnnemi)
 
 	distance := distanceEnnemi(ennemi, coutTotal)
 	seRapproche := distance != -1 && (plusProcheAvant == -1 || distance < plusProcheAvant)
 
+	choix, raison := "", ""
 	if etat.Moi.BOUCLIER == 0 {
-		boucliers := bouclierDeMonCote(etat.Objets, coutTotal, coutEnnemi)
-		direction := versObjet(boucliers, "BOUCLIER", moi, coutTotal, premierPas, DetourBouclier)
-		if direction != "" {
-			return "AVANCE " + direction, "va chercher le bouclier de son côté"
-		}
+		boucliers := bouclierDeMonCote(objets, coutTotal, coutEnnemi)
+		choix = versObjet(boucliers, "BOUCLIER", moi, coutTotal, premierPas, DetourBouclier)
+		raison = "va chercher le bouclier de son côté"
 	}
 
-	if ennemiABouge && aDesMunitions && peutAnticiper {
+	if choix == "" && ilBouge && infoFraiche && aDesMunitions && peutAnticiper {
 		directionAnticipee, caseVisee, touche := tirAnticipe(c, moi, ennemi, coutTotal)
 		if touche {
 			cerveau.caseVisee = caseVisee
@@ -96,50 +129,117 @@ func Decider(cerveau *Cerveau, etat protocole.Etat) (string, string) {
 		}
 	}
 
-	if etat.Moi.VIE <= SeuilPVBas {
-		direction := versObjet(etat.Objets, "SOIN", moi, coutTotal, premierPas, SansLimite)
-		if direction != "" {
-			return "AVANCE " + direction, "PV bas, va au soin"
+	if choix == "" && etat.Moi.VIE <= SeuilPVBas {
+		choix = versObjet(objets, "SOIN", moi, coutTotal, premierPas, SansLimite)
+		raison = "PV bas, va au soin"
+	}
+	if choix == "" && !aDesMunitions {
+		choix = versObjet(objets, "MUNITION", moi, coutTotal, premierPas, SansLimite)
+		raison = "plus de munitions, va recharger"
+	}
+	if choix == "" && etat.Moi.BOUCLIER == 0 {
+		choix = versObjet(objets, "BOUCLIER", moi, coutTotal, premierPas, DetourBouclier)
+		raison = "va chercher un bouclier"
+	}
+	if choix == "" {
+		choix = versObjet(objetsUtiles(objets, etat.Moi), "", moi, coutTotal, premierPas, ObjetProche)
+		raison = "ramasse un objet proche"
+	}
+	if choix == "" {
+		choix = versCaseDeTir(c, moi, ennemi, coutTotal, premierPas)
+		raison = "approche d'une case de tir"
+	}
+	if choix == "" {
+		return "ATTENDS", "rien d'utile à faire"
+	}
+
+	dangereuse := exposee(c, voisin(moi, choix), ennemi, coutTotal)
+	if dangereuse && ilBouge && (seRapproche || dejaAttendu < PatienceMax) {
+		cerveau.toursAttente = dejaAttendu
+		cerveau.plusProche = plusProcheAvant
+		if seRapproche {
+			cerveau.plusProche = distance
+		} else {
+			cerveau.toursAttente = dejaAttendu + 1
 		}
-	}
-
-	if !aDesMunitions {
-		direction := versObjet(etat.Objets, "MUNITION", moi, coutTotal, premierPas, SansLimite)
-		if direction != "" {
-			return "AVANCE " + direction, "plus de munitions, va recharger"
+		if !etat.EnnemiVu {
+			cerveau.dernierRadar = etat.Tour
+			return "RADAR", "attend en le surveillant au radar"
 		}
+		return "ATTENDS", "attend qu'il entre dans ma ligne de tir"
+	}
+	return "AVANCE " + choix, raison
+}
+
+func memoriser(cerveau *Cerveau, etat protocole.Etat, moi Pos) {
+	if etat.EnnemiVu {
+		cerveau.ennemiConnu = Pos{etat.Ennemi.X, etat.Ennemi.Y}
+		cerveau.vieEnnemi = etat.Ennemi.VIE
+		cerveau.vuAuTour = etat.Tour
 	}
 
-	if etat.Moi.BOUCLIER == 0 {
-		direction := versObjet(etat.Objets, "BOUCLIER", moi, coutTotal, premierPas, DetourBouclier)
-		if direction != "" {
-			return "AVANCE " + direction, "va chercher un bouclier"
-		}
-	}
-
-	direction := versObjet(objetsUtiles(etat), "", moi, coutTotal, premierPas, ObjetProche)
-	if direction != "" {
-		return "AVANCE " + direction, "ramasse un objet proche"
-	}
-
-	direction = versCaseDeTir(c, moi, ennemi, coutTotal, premierPas)
-	if direction != "" {
-		prochaineCase := voisin(moi, direction)
-		dangereuse := exposee(c, prochaineCase, ennemi, coutTotal)
-		if dangereuse && ennemiABouge && (seRapproche || dejaAttendu < PatienceMax) {
-			cerveau.toursAttente = dejaAttendu
-			cerveau.plusProche = plusProcheAvant
-			if seRapproche {
-				cerveau.plusProche = distance
-			} else {
-				cerveau.toursAttente = dejaAttendu + 1
+	var gardes []protocole.Objet
+	if !vueComplete(cerveau, etat, moi) {
+		for _, objet := range cerveau.objetsConnus {
+			if ecart(moi, Pos{objet.X, objet.Y}) > Vision {
+				gardes = append(gardes, objet)
 			}
-			return "ATTENDS", "attend qu'il entre dans ma ligne de tir"
 		}
-		return "AVANCE " + direction, "approche d'une case de tir"
 	}
+	cerveau.objetsConnus = append(gardes, etat.Objets...)
+}
 
-	return "ATTENDS", "rien d'utile à faire"
+func vueComplete(cerveau *Cerveau, etat protocole.Etat, moi Pos) bool {
+	if cerveau.dernierRadar == etat.Tour-1 {
+		return true
+	}
+	if etat.EnnemiVu && ecart(moi, Pos{etat.Ennemi.X, etat.Ennemi.Y}) > Vision {
+		return true
+	}
+	for _, objet := range etat.Objets {
+		if ecart(moi, Pos{objet.X, objet.Y}) > Vision {
+			return true
+		}
+	}
+	return false
+}
+
+func radarUtile(cerveau *Cerveau, etat protocole.Etat, moi Pos) bool {
+	if etat.EnnemiVu || etat.Tour-cerveau.dernierRadar < DelaiRadar {
+		return false
+	}
+	pasVuDepuisLongtemps := etat.Tour-cerveau.vuAuTour >= OubliEnnemi
+	plusLaOuJeCroyais := ecart(moi, cerveau.ennemiConnu) <= Vision
+	return pasVuDepuisLongtemps || plusLaOuJeCroyais
+}
+
+func positionPrevue(ennemi, moi Pos, coutTotal map[Pos]int) Pos {
+	for _, caseFuture := range casesProbablesEnnemi(ennemi, coutTotal) {
+		if ecart(caseFuture, moi) > Vision {
+			return caseFuture
+		}
+	}
+	return ennemi
+}
+
+func departEnnemi(c carte.Carte, moi Pos) Pos {
+	depart1 := Pos{c.Depart1.X, c.Depart1.Y}
+	if moi == depart1 {
+		return Pos{c.Depart2.X, c.Depart2.Y}
+	}
+	return depart1
+}
+
+func ecart(a, b Pos) int {
+	dx := a.X - b.X
+	if dx < 0 {
+		dx = -dx
+	}
+	dy := a.Y - b.Y
+	if dy < 0 {
+		dy = -dy
+	}
+	return dx + dy
 }
 
 func distanceEnnemi(ennemi Pos, coutTotal map[Pos]int) int {
@@ -208,19 +308,22 @@ func bouclierDeMonCote(objets []protocole.Objet, coutTotal, coutEnnemi map[Pos]i
 	return boucliers
 }
 
-func objetsUtiles(etat protocole.Etat) []protocole.Objet {
+func objetsUtiles(objets []protocole.Objet, robot protocole.Robot) []protocole.Objet {
 	var utiles []protocole.Objet
 
-	for _, objet := range etat.Objets {
+	for _, objet := range objets {
 		switch objet.Type {
 		case "SOIN":
-			if etat.Moi.VIE > PVMax-GainSoin {
+			if robot.VIE > PVMax-GainSoin {
 				continue
 			}
 		case "MUNITION":
-			if etat.Moi.MUN == protocole.MunIllimitees || etat.Moi.MUN >= MunSuffisantes {
+			if robot.MUN == protocole.MunIllimitees || robot.MUN >= MunSuffisantes {
 				continue
 			}
+		case "BOUCLIER", "TRESOR":
+		default:
+			continue
 		}
 		utiles = append(utiles, objet)
 	}
