@@ -26,6 +26,7 @@ type Objet struct {
 type Etat struct {
 	Tour        int
 	Moi, Ennemi Robot
+	EnnemiVu    bool
 	Objets      []Objet
 }
 
@@ -74,6 +75,7 @@ func Lire(lignes []string) (Etat, error) {
 				return Etat{}, fmt.Errorf("ENNEMI: erreur de lecture %v", err)
 			}
 			e.Ennemi = robot
+			e.EnnemiVu = true
 			okEnnemi = true
 
 		case "OBJET":
@@ -86,8 +88,8 @@ func Lire(lignes []string) (Etat, error) {
 		default:
 		}
 	}
-	if !okTour || !okMoi || !okEnnemi {
-		return Etat{}, fmt.Errorf("incomplet: tour=%v, moi=%v, ennemi=%v", okTour, okMoi, okEnnemi)
+	if !okTour || !okMoi {
+		return Etat{}, fmt.Errorf("incomplet: tour=%v, moi=%v", okTour, okMoi)
 	}
 	return e, nil
 }

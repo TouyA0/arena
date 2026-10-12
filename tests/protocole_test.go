@@ -51,3 +51,14 @@ func TestBlocsRefuses(t *testing.T) {
 		}
 	}
 }
+
+func TestEnnemiCache(t *testing.T) {
+	bloc := []string{"TOUR 4", "MOI 3 2 VIE 100 MUN 10 BOUCLIER 0"}
+	etat, err := protocole.Lire(bloc)
+	if err != nil {
+		t.Fatalf("bloc refusé : %v", err)
+	}
+	if etat.EnnemiVu {
+		t.Errorf("EnnemiVu devrait être false")
+	}
+}
