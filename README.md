@@ -42,7 +42,7 @@ Lancer une partie avec l'arbitre :
 Lancer les tests :
 
 ```
-go test ./...
+go test ./tests/
 ```
 
 ## Architecture
