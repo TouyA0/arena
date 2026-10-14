@@ -34,18 +34,26 @@ const (
 // sait de l'ennemi et des objets, l'attente en cours et les tirs anticipés.
 type Cerveau struct {
 	carte        carte.Carte
-	dejaJoue     bool
-	ennemiConnu  Pos
-	vieEnnemi    int
-	vuAuTour     int
-	objetsConnus []protocole.Objet
-	dernierRadar int
-	toursAttente int
-	plusProche   int
-	caseVisee    Pos
-	aVise        bool
-	rates        int
-	pause        int
+	dejaJoue     bool // false au premier tour : sert à initialiser ennemiConnu
+
+	// Ce qu'on sait de l'ennemi
+	ennemiConnu  Pos // dernière position vue, ou sa case de départ au début
+	vieEnnemi    int // ses PV au dernier contact
+	vuAuTour     int // tour où on l'a vu pour la dernière fois (-1 = jamais)
+
+	// Objets et radar
+	objetsConnus []protocole.Objet // objets vus, gardés en mémoire même hors de vue
+	dernierRadar int // tour du dernier RADAR
+
+	// Attente avant d'entrer dans sa ligne de tir
+	toursAttente int // nombre de tours déjà passés à attendre
+	plusProche   int // plus petite distance à lui pendant l'attente (-1 = aucune)
+
+	// Tirs anticipés
+	caseVisee    Pos // case sur laquelle on a tiré au tour d'avant
+	aVise        bool // vrai si on a fait un tir anticipé au tour d'avant
+	rates        int // tirs anticipés ratés d'affilée
+	pause        int // tours restants sans tir anticipé
 }
 
 // NouveauCerveau prépare un cerveau vide pour une partie sur la carte c.
